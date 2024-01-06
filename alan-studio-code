@@ -1,0 +1,205 @@
+// {Name: Basic_example_for_AI_assistant}
+// {Description: Learn how to create a dialog script with voice/text commands and text corpus for question answering}
+
+// Use this sample to create your own voice/text commands
+intent('hello world', p => {
+    p.play('(hello|hi there)');
+});
+
+
+intent('What does this app do?', 'What can I do here?',
+    reply("This is a news project."));
+
+
+
+
+
+const API_KEY = process.env.API_KEY;
+let savedArticles = [];
+
+// news by source
+intent('Give me the news from $(source* (.*))', (p) => {
+    let NEWS_API_URL = `https://newsapi.org/v2/top-headlines?`;
+    console.log("news")
+    if(p.source.value) {
+        NEWS_API_URL = `${NEWS_API_URL}sources=${p.source.value.toLowerCase().split(" ").join('-')}&apiKey=${API_KEY}`
+        console.log(NEWS_API_URL)
+    }
+    
+    const getAuth = async () => {
+    try {
+        const response = await api.axios({
+            url: NEWS_API_URL,
+            method: 'get',
+        });
+        // Writing the access token to Alan AI Studio logs
+        const { articles } = response.data;
+        console.log(articles);
+        savedArticles = articles;
+        
+        p.play({ command: 'newHeadlines', articles });
+        p.play(`Here are the (latest|recent) ${p.source.value}.`);
+        
+        p.play('Would you like me to read the headlines');
+        p.then(conformation);
+        
+    } catch(error) {
+        console.error(error);
+    }
+}
+    getAuth();
+    
+
+});
+
+//news by term
+
+intent('what\'s up with $(term* (.*))', (p) => {
+    let NEWS_API_URL = `https://newsapi.org/v2/everything?`;
+    
+    if(p.term.value) {
+        NEWS_API_URL = `${NEWS_API_URL}q=${p.term.value}&apiKey=${API_KEY}`
+        console.log(NEWS_API_URL)
+    }
+    
+    const getAuth = async () => {
+    try {
+        const response = await api.axios({
+            url: NEWS_API_URL,
+            method: 'get',
+        });
+        // Writing the access token to Alan AI Studio logs
+        const { articles } = response.data;
+        console.log(articles);
+        savedArticles = articles;
+        
+        p.play({ command: 'newHeadlines', articles });
+        p.play(`Here are the (latest|recent) articles on ${p.term.value}.`);
+        
+        p.play('Would you like me to read the headlines');
+        p.then(conformation);
+    } catch(error) {
+        console.error(error);
+        p.play('Sorry, please try searching for something else');
+        return;
+    }
+}
+    getAuth();
+    
+    
+});
+
+//news by cateogory
+const CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology'];
+const CATEGORIES_INTENT = `${CATEGORIES.map((category) => `${category}~${category}`).join('|')}`;
+
+intent(`(show|what is|tell me|what's|what are|what're|read) (the|) (recent|latest|) $(N news|headlines) (in|about|on|) $(C~ ${CATEGORIES_INTENT})`,
+  `(read|show|get|bring me|give me) (the|) (recent|latest) $(C~ ${CATEGORIES_INTENT}) $(N news|headlines)`, (p) => {
+    
+    let NEWS_API_URL = `https://newsapi.org/v2/top-headlines?apiKey=${API_KEY}&country=in`;
+    
+    if(p.C.value) {
+        NEWS_API_URL = `${NEWS_API_URL}&category=${p.C.value}`;
+        console.log(NEWS_API_URL)
+    }
+    
+    const getAuth = async () => {
+    try {
+        const response = await api.axios({
+            url: NEWS_API_URL,
+            method: 'get',
+        });
+        // Writing the access token to Alan AI Studio logs
+        const { articles } = response.data;
+        console.log(articles);
+        savedArticles = articles;
+        
+        p.play({ command: 'newHeadlines', articles });
+        
+        if(p.C.value) {
+        p.play(`Here are the (latest|recent) articles on ${p.C.value}.`);
+        }
+        else{
+            p.play(`Here are the (latest|recent) news`);
+        }
+        
+        p.play('Would you like me to read the headlines');
+        p.then(conformation);
+        
+    } catch(error) {
+        console.error(error);
+        p.play('Sorry, please try searching for a different category');
+        return;
+    }
+}
+    getAuth();
+    
+    
+});
+
+//latest news
+
+intent('Give me the latest news', (p) => {
+    let NEWS_API_URL = `https://newsapi.org/v2/top-headlines?apiKey=${API_KEY}&country=in`;
+    console.log("news")
+    
+    
+    const getAuth = async () => {
+    try {
+        const response = await api.axios({
+            url: NEWS_API_URL,
+            method: 'get',
+        });
+        // Writing the access token to Alan AI Studio logs
+        const { articles } = response.data;
+        console.log(articles);
+        savedArticles = articles;
+        
+        p.play({ command: 'newHeadlines', articles });
+        p.play(`Here are the (latest|recent) news.`);
+        
+        p.play('Would you like me to read the headlines');
+        p.then(conformation);
+    } catch(error) {
+        console.error(error);
+    }
+}
+    getAuth();
+    
+    
+    
+});
+
+const conformation = context (()=>{
+    intent('yes', async (p)=>{
+        for(let i = 0 ; i<savedArticles.length; i++){
+            
+            p.play({command: 'highlight', article: savedArticles[i]});
+            p.play(`${savedArticles[i].title}`);
+        }
+    })
+    intent ('no', (p)=>{
+        p.play("Sure, Sounds good to me");
+    })
+})
+
+intent('open (the|) (article|) (number|) $(number* (.*))', (p)=>{
+    if(p.number.value){
+        
+        p.play({command :"open", number: p.number.value, articles : savedArticles});
+        p.play('opening');
+    }
+})
+
+intent('(Go|) back', (p)=>{
+    p.play('Sure, Going back');
+    p.play({command: 'newHeadlines', articles:[]});
+})
+
+intent('(read|what|) (are|) (the|) headlines' , (p)=>{
+    for(let i = 0 ; i<savedArticles.length; i++){
+            
+            p.play({command: 'highlight', article: savedArticles[i]});
+            p.play(`${savedArticles[i].title}`);
+        }
+})
